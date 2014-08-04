@@ -46,6 +46,7 @@
 extern "C" {
 #endif /* __cplusplus */
 #include "cpu.h"
+#define PACKAGE "libgrive" /* dummy to keep <bfd.h> happy */
 #include "config.h"
 #include "hw/hw.h" // AWH
 
