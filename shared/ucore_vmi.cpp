@@ -203,7 +203,8 @@ static void ucore_check_procexit(void *) {
 	qemu_mod_timer(recon_timer,
 				   qemu_get_clock_ns(vm_clock) + get_ticks_per_sec() * 10);
 
-	target_ulong next_task = uop.initproc;
+	target_ulong next_task = uop.proc_list;
+	target_ulong proc_list_addr = next_task;
 	set<target_ulong> live_pids;
 	set<target_ulong> vmi_pids;
 	set<target_ulong> dead_pids;
@@ -213,9 +214,20 @@ static void ucore_check_procexit(void *) {
 	for(int i=0; i<MAX_LOOP_COUNT; i++)
 	{
 		target_ulong task_pid;
-		BREAK_IF(DECAF_read_ptr(env,
+
+		//get proc's list_link
+		BREAK_IF(DECAF_read_mem(env, next_task + 4, 4, &next_task) < 0);
+		if(next_task == proc_list_addr)  //finding process finished
+			break;
+		//get proc's pid
+		BREAK_IF(DECAF_read_mem(env, next_task-(uop.ps_list_link-uop.ps_pid), 4, &task_pid) < 0);
+
+		live_pids.insert(task_pid);
+
+/*		BREAK_IF(DECAF_read_ptr(env,
 			next_task + uop.ps_pid, 
 			&task_pid) < 0);
+
 		live_pids.insert(task_pid);
 
 		BREAK_IF(DECAF_read_ptr(env,
@@ -227,6 +239,7 @@ static void ucore_check_procexit(void *) {
 		{
 			break;
 		}
+		*/
 	}
 
 	unordered_map<uint32_t, process *>::iterator iter = process_pid_map.begin();
@@ -275,9 +288,9 @@ void ucore_vmi_init()
 
 	DECAF_register_callback(DECAF_TLB_EXEC_CB, ucore_tlb_call_back, NULL);
 
-	//recon_timer = qemu_new_timer_ns(vm_clock, ucore_check_procexit, 0);
-	//qemu_mod_timer(recon_timer,
-	//			   qemu_get_clock_ns(vm_clock) + get_ticks_per_sec() * 20);
+	recon_timer = qemu_new_timer_ns(vm_clock, ucore_check_procexit, 0);
+	qemu_mod_timer(recon_timer,
+				   qemu_get_clock_ns(vm_clock) + get_ticks_per_sec() * 20);
 
 }
 
